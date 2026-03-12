@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Bitinning">
+<meta name="application-name" content="Bitinning Post Creator">
+<meta name="theme-color" content="#F5A623">
+<meta name="format-detection" content="telephone=no">
+<meta name="description" content="Create professional crypto news post cards for social media">
+
+<title>Bitinning Post Creator</title>
+
+<!-- PWA Manifest -->
+<link rel="manifest" href="manifest.json">
+
+<!-- Favicon -->
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png">
+<link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192.png">
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<!-- html2canvas -->
+<script src="./html2canvas.min.js"></script>
+
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --gold: #F5A623;
+  --gold-light: #FFB83F;
+  --white: #ffffff;
+  --panel-bg: #0f0f0f;
+  --border-col: #252525;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html { height: 100%; }
+body {
+  background: #0a0a0a;
+  color: var(--white);
+  font-family: 'Poppins', sans-serif;
+  min-height: 100%;
+  min-height: -webkit-fill-available;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* ============================
+   APP BAR
+============================ */
+.app-bar {
+  background: #000;
+  border-bottom: 2px solid var(--gold);
+  padding: calc(10px + var(--safe-top)) 16px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 300;
+}
+.app-bar-left { display: flex; align-items: center; gap: 10px; }
+.app-bar-icon {
+  width: 36px; height: 36px;
+  background: var(--gold);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 18px; color: #000;
+  font-family: 'Poppins', sans-serif;
+  box-shadow: 0 0 12px rgba(245,166,35,0.4);
+}
+.app-bar-name { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--gold); letter-spacing: 2px; line-height: 1; }
+.app-bar-tag { font-size: 8px; color: #666; letter-spacing: 2px; text-transform: uppercase; }
+
+/* Install button */
+.btn-install {
+  background: rgba(245,166,35,0.12);
+  border: 1px solid rgba(245,166,35,0.35);
+  color: var(--gold);
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  gap: 5px;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+.btn-install.visible { display: flex; }
+.btn-install:hover { background: rgba(245,166,35,0.22); }
+
+/* ============================
+   CARD TABS
+============================ */
+.card-tabs {
+  display: flex;
+  background: #000;
+  border-bottom: 1px solid #1e1e1e;
+  position: sticky;
+  top: 62px;
+  z-index: 299;
+}
+.card-tab {
+  flex: 1; padding: 12px 8px; text-align: center;
+  font-family: 'Bebas Neue', sans-serif; font-size: 13px; letter-spacing: 2px;
+  color: #444; cursor: pointer; border: none; background: none;
+  border-bottom: 3px solid transparent; transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+.card-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+/* ============================
+   LAYOUT — mobile column, desktop side-by-side
+============================ */
+.layout { display: flex; flex-direction: column; }
+
+@media (min-width: 960px) {
+  .layout { flex-direction: row; align-items: flex-start; height: calc(100vh - 106px); }
+  .editor-col {
+    width: 380px; min-width: 340px; max-width: 420px;
+    position: sticky; top: 106px;
+    height: calc(100vh - 106px);
+    overflow-y: auto;
+    border-right: 1px solid var(--border-col);
+    display: flex; flex-direction: column;
+  }
+  .preview-col { flex: 1; overflow-y: auto; height: calc(100vh - 106px); }
+}
+
+/* ============================
+   EDITOR COLUMN
+============================ */
+.editor-col { background: var(--panel-bg); }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+.editor-scroll { flex: 1; overflow-y: auto; }
+
+.editor-section {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-col);
+}
+.editor-section-title {
+  font-family: 'Bebas Neue', sans-serif; font-size: 12px; letter-spacing: 3px;
+  color: var(--gold); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+}
+.editor-section-title::after { content: ''; flex: 1; height: 1px; background: #222; }
+
+/* Inputs */
+input[type="text"], textarea {
+  width: 100%; background: #141414; border: 1px solid #282828; border-radius: 8px;
+  color: var(--white); font-family: 'Poppins', sans-serif; font-size: 13px;
+  padding: 10px 12px; outline: none; resize: vertical; transition: border-color 0.2s; line-height: 1.5;
+  -webkit-appearance: none;
+}
+input[type="text"]:focus, textarea:focus { border-color: var(--gold); }
+textarea { min-height: 55px; }
+.hint { font-size: 10px; color: #555; margin-top: 4px; line-height: 1.4; }
+
+/* Upload zone */
+.upload-zone {
+  border: 2px dashed #282828; border-radius: 10px; padding: 16px; text-align: center;
+  cursor: pointer; position: relative; transition: all 0.2s; overflow: hidden;
+  background: #0c0c0c;
+}
+.upload-zone:hover, .upload-zone:active { border-color: var(--gold); background: #111; }
+.upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.upload-zone-icon { font-size: 20px; margin-bottom: 4px; }
+.upload-zone-text { font-size: 11px; color: #555; font-weight: 600; letter-spacing: 0.5px; }
+.upload-thumb { width: 100%; max-height: 90px; object-fit: cover; border-radius: 6px; margin-top: 8px; display: none; }
+
+/* Font size row */
+.font-size-row {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  background: #111; border-radius: 8px; padding: 8px 10px; border: 1px solid #222;
+}
+.font-size-label { font-size: 9px; color: #666; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; white-space: nowrap; min-width: 32px; }
+.font-size-row input[type="range"] { flex: 1; accent-color: var(--gold); cursor: pointer; height: 3px; }
+.font-size-counter { display: flex; align-items: center; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; overflow: hidden; flex-shrink: 0; }
+.font-size-counter button { background: none; border: none; color: #888; font-size: 15px; padding: 4px 9px; cursor: pointer; line-height: 1; transition: color 0.15s; }
+.font-size-counter button:hover { color: var(--gold); }
+.font-size-counter span { font-family: 'Bebas Neue', sans-serif; font-size: 14px; color: var(--gold); min-width: 26px; text-align: center; letter-spacing: 1px; }
+
+/* Word rows */
+.word-rows { display: flex; flex-direction: column; gap: 6px; }
+.word-row { display: flex; gap: 6px; align-items: center; }
+.word-row input { flex: 1; margin: 0; }
+.word-color-btn {
+  width: 34px; height: 36px; border-radius: 6px; border: 2px solid #333; cursor: pointer;
+  font-size: 9px; font-weight: 800; display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s; flex-shrink: 0; letter-spacing: 0.5px;
+}
+.word-color-btn.is-gold { background: var(--gold); border-color: var(--gold); color: #000; }
+.word-color-btn.is-white { background: #fff; border-color: #fff; color: #000; }
+.btn-remove-word { width: 28px; height: 36px; background: #150505; border: 1px solid #3a0000; color: #f44; border-radius: 6px; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.btn-add-word { background: #070f07; border: 1px dashed #1e3a1e; color: #4a8a4a; border-radius: 8px; padding: 9px; font-size: 11px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 6px; transition: background 0.15s; }
+.btn-add-word:hover { background: #0c1a0c; }
+
+/* Point rows */
+.points-list { display: flex; flex-direction: column; gap: 6px; }
+.point-row { display: flex; gap: 6px; align-items: center; }
+.point-row input { flex: 1; margin: 0; }
+.btn-remove-point { width: 28px; height: 36px; background: #150505; border: 1px solid #3a0000; color: #f44; border-radius: 6px; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.btn-add-point { background: #070f07; border: 1px dashed #1e3a1e; color: #4a8a4a; border-radius: 8px; padding: 9px; font-size: 11px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 6px; }
+
+/* ============================
+   CTA (sticky bottom)
+============================ */
+.cta-area {
+  padding: 12px 16px calc(12px + var(--safe-bottom));
+  display: flex; flex-direction: column; gap: 8px;
+  background: #070707;
+  border-top: 1px solid #1a1a1a;
+  position: sticky; bottom: 0; z-index: 10;
+  flex-shrink: 0;
+}
+@media (min-width: 960px) { .cta-area { position: static; } }
+
+.btn-primary {
+  background: var(--gold); color: #000; border: none; border-radius: 10px;
+  padding: 14px 16px; font-family: 'Bebas Neue', sans-serif; font-size: 16px;
+  letter-spacing: 3px; cursor: pointer; transition: background 0.2s, transform 0.1s;
+  display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
+  box-shadow: 0 4px 20px rgba(245,166,35,0.25);
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-primary:hover { background: var(--gold-light); }
+.btn-primary:active { transform: scale(0.97); }
+
+.btn-secondary {
+  background: transparent; border: 1px solid #2a2a2a; color: #666;
+  border-radius: 10px; padding: 10px 16px; font-family: 'Bebas Neue', sans-serif;
+  font-size: 13px; letter-spacing: 2px; cursor: pointer; width: 100%;
+  transition: border-color 0.2s, color 0.2s;
+}
+.btn-secondary:hover { border-color: var(--gold); color: var(--gold); }
+
+/* ============================
+   PREVIEW COLUMN
+============================ */
+.preview-col {
+  background: #080808;
+  padding: 20px 16px 80px;
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+}
+.preview-eyebrow {
+  font-family: 'Bebas Neue', sans-serif; font-size: 10px; letter-spacing: 4px;
+  color: #333; width: 100%; max-width: 540px; display: flex; align-items: center;
+  gap: 10px; margin-bottom: 10px;
+}
+.preview-eyebrow::before, .preview-eyebrow::after { content: ''; flex: 1; height: 1px; background: #1a1a1a; }
+
+/* ============================
+   THE POST CARD
+============================ */
+.post-card {
+  width: 100%; max-width: 540px;
+  aspect-ratio: 9 / 11.25;
+  background: #000;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  border-radius: 2px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.8);
+}
+
+.card-photo-area {
+  position: relative; flex: 0 0 42%; width: 100%; overflow: hidden; background: #111;
+}
+.card-photo-area .bg-img {
+  width: 100%; height: 100%; object-fit: cover; object-position: center;
+  display: none; position: absolute; inset: 0;
+}
+.card-photo-placeholder {
+  width: 100%; height: 100%;
+  background: linear-gradient(135deg, #120800, #1e1000, #2a1500, #120800);
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 8px;
+}
+.card-photo-placeholder .ph-icon { font-size: 28px; opacity: 0.4; }
+.card-photo-placeholder .ph-text { font-family: 'Bebas Neue', sans-serif; font-size: 11px; letter-spacing: 3px; color: #333; }
+.card-photo-fade {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 55%;
+  background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.6) 50%, rgba(0,0,0,0.95) 80%, #000 100%);
+  pointer-events: none;
+}
+
+/* Logo band — logo sits ON the line */
+.card-logo-band {
+  background: #000; position: relative; flex-shrink: 0;
+  padding: 10px 0; display: flex; align-items: center; justify-content: center;
+}
+.card-logo-line {
+  position: absolute; top: 50%; left: 0; right: 0; height: 1.5px;
+  background: linear-gradient(to right, transparent 0%, var(--gold) 15%, #fff 50%, var(--gold) 85%, transparent 100%);
+  transform: translateY(-50%); pointer-events: none;
+}
+.card-logo-inner {
+  position: relative; z-index: 2; background: #000; padding: 0 12px;
+  display: flex; align-items: center; justify-content: center;
+}
+.card-logo-img { height: 36px; width: auto; object-fit: contain; display: none; }
+.card-logo-fallback { display: flex; align-items: center; gap: 5px; }
+.card-logo-fallback-icon { width: 20px; height: 20px; background: var(--gold); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900; color: #000; }
+.card-logo-fallback-wrap { display: flex; flex-direction: column; line-height: 1.2; }
+.card-logo-fallback-name { font-family: 'Bebas Neue', sans-serif; font-size: 16px; color: var(--gold); letter-spacing: 2px; }
+.card-logo-fallback-tag { font-size: 6.5px; color: #888; letter-spacing: 1.5px; }
+
+/* Card 1 text */
+.card-text-area { background: #000; flex: 1; padding: 3% 5% 2%; display: flex; flex-direction: column; }
+.card-main-heading {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: var(--heading-size, 42px);
+  line-height: 1.0; letter-spacing: 1px; text-transform: uppercase;
+  text-align: center; margin-bottom: 3%;
+  word-break: normal; overflow-wrap: break-word; white-space: normal;
+}
+.card-subtitle { font-family: 'Poppins', sans-serif; font-size: clamp(9px,2.2vw,13px); font-weight: 700; color: var(--white); text-align: center; line-height: 1.5; margin-bottom: 2.5%; }
+.card-body { font-family: 'Poppins', sans-serif; font-size: var(--body-size, 12px); font-weight: 600; color: var(--white); text-align: center; line-height: 1.6; }
+
+/* Card 2 content */
+.card2-content { background: #000; flex: 1; padding: 3% 5% 2%; display: flex; flex-direction: column; }
+.card2-title { font-family: 'Poppins', sans-serif; font-size: clamp(14px,4vw,26px); font-weight: 800; color: var(--white); text-align: center; line-height: 1.2; margin-bottom: 4%; }
+.card2-points { display: flex; flex-direction: column; gap: 5px; flex: 1; margin-bottom: 3%; }
+.card2-point { display: flex; align-items: flex-start; gap: 7px; font-family: 'Poppins', sans-serif; font-size: clamp(8px,2vw,12px); font-weight: 600; color: var(--white); line-height: 1.45; }
+.card2-point::before { content: '•'; color: var(--gold); font-size: 1.3em; flex-shrink: 0; line-height: 1.3; }
+.card2-footer-text { font-family: 'Poppins', sans-serif; font-size: clamp(8px,1.9vw,11px); font-weight: 600; color: var(--white); text-align: center; line-height: 1.6; border-top: 1px solid #181818; padding-top: 3%; }
+
+/* Footer */
+.card-footer { background: #000; padding: 0 5% 3%; flex-shrink: 0; }
+.card-footer-line { width: 100%; height: 1.5px; background: linear-gradient(to right, var(--gold) 0%, var(--gold) 50%, transparent 100%); margin-bottom: 5px; opacity: 0.6; }
+.card-watermark { font-family: 'Poppins', sans-serif; font-size: clamp(7px,1.5vw,10px); font-weight: 500; color: #444; text-align: left; }
+
+/* ============================
+   INSTALL PROMPT BANNER
+============================ */
+.install-banner {
+  display: none;
+  background: linear-gradient(90deg, #0f0a00, #1a1000);
+  border-bottom: 1px solid rgba(245,166,35,0.2);
+  padding: 10px 16px;
+  align-items: center;
+  gap: 12px;
+}
+.install-banner.visible { display: flex; }
+.install-banner-text { flex: 1; font-size: 12px; color: #aaa; line-height: 1.3; }
+.install-banner-text strong { color: var(--gold); }
+.install-banner-btn {
+  background: var(--gold); color: #000; border: none; border-radius: 6px;
+  padding: 7px 14px; font-family: 'Bebas Neue', sans-serif; font-size: 13px;
+  letter-spacing: 1.5px; cursor: pointer; flex-shrink: 0;
+}
+.install-banner-close { background: none; border: none; color: #555; font-size: 18px; cursor: pointer; padding: 0 4px; flex-shrink: 0; }
+
+/* ============================
+   TOAST
+============================ */
+.toast {
+  position: fixed; bottom: calc(90px + var(--safe-bottom)); left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  background: var(--gold); color: #000;
+  font-family: 'Bebas Neue', sans-serif; font-size: 14px; letter-spacing: 2px;
+  padding: 10px 22px; border-radius: 30px; opacity: 0; transition: all 0.25s;
+  pointer-events: none; z-index: 9999; white-space: nowrap;
+  box-shadow: 0 4px 20px rgba(245,166,35,0.4);
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ============================
+   OFFLINE INDICATOR
+============================ */
+.offline-bar {
+  display: none; background: #1a0a0a; border-bottom: 1px solid #400;
+  padding: 6px 16px; text-align: center;
+  font-size: 11px; color: #f66; font-weight: 600; letter-spacing: 1px;
+}
+.offline-bar.visible { display: block; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: #0a0a0a; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--gold); }
+
+/* Splash screen override for iOS */
+@media (display-mode: standalone) {
+  .app-bar { padding-top: calc(14px + var(--safe-top)); }
+}
+</style>
+
+<style>
+/* Offline font fallbacks */
+@font-face {
+  font-family: 'Bebas Neue';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Impact'), local('Arial Black');
+  font-display: fallback;
+}
+@font-face {
+  font-family: 'Poppins';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Roboto'), local('Arial');
+  font-display: fallback;
+}
+</style>
+</head>
+<body>
+
+<!-- Offline bar -->
+<div class="offline-bar" id="offlineBar">⚠ YOU'RE OFFLINE — APP WORKS FULLY WITHOUT INTERNET</div>
+
+<!-- App Bar -->
+<div class="app-bar">
+  <div class="app-bar-left">
+    <div class="app-bar-icon">₿</div>
+    <div>
+      <div class="app-bar-name">Bitinning</div>
+      <div class="app-bar-tag">Post Creator</div>
+    </div>
+  </div></div>
+
+<!-- Card Tabs -->
+<div class="card-tabs">
+  <button class="card-tab active" onclick="switchCard(1)">📰 CARD 1 — HEADLINE</button>
+  <button class="card-tab" onclick="switchCard(2)">🏦 CARD 2 — DETAILS</button>
+</div>
+
+<div class="layout">
+
+  <!-- ==================== EDITOR ==================== -->
+  <div class="editor-col">
+
+    <!-- CARD 1 EDITOR -->
+    <div class="tab-panel active" id="editor1">
+      <div class="editor-scroll">
+
+        <div class="editor-section">
+          <div class="editor-section-title">Background Image</div>
+          <div class="upload-zone" onclick="document.getElementById('bg1Input').click()">
+            <input type="file" id="bg1Input" accept="image/*" onchange="loadBg(event,1)">
+            <div class="upload-zone-icon">🖼️</div>
+            <div class="upload-zone-text">TAP TO UPLOAD BACKGROUND</div>
+            <img id="bg1Thumb" class="upload-thumb" alt="">
+          </div>
+        </div>
+
+        <div class="editor-section">
+          <div class="editor-section-title">Logo</div>
+          <div class="upload-zone" onclick="document.getElementById('logo1Input').click()">
+            <input type="file" id="logo1Input" accept="image/*" onchange="loadLogo(event,1)">
+            <div class="upload-zone-text">📎 UPLOAD LOGO PNG</div>
+            <img id="logo1Thumb" class="upload-thumb" alt="">
+          </div>
+          <div class="hint">Transparent PNG recommended</div>
+        </div>
+
+        <div class="editor-section">
+          <div class="editor-section-title">Main Heading</div>
+          <div class="font-size-row">
+            <span class="font-size-label">SIZE</span>
+            <input type="range" id="headingFontSize" min="16" max="80" value="42" step="1" oninput="updateHeadingSize(this.value)">
+            <div class="font-size-counter">
+              <button onclick="nudgeSize(-1)">−</button>
+              <span id="headingSizeLabel">42</span>
+              <button onclick="nudgeSize(1)">+</button>
+            </div>
+          </div>
+          <div class="hint" style="margin-bottom:8px;">Click <strong style="color:var(--gold)">G</strong> / <strong>W</strong> to toggle gold or white per phrase</div>
+          <div class="word-rows" id="wordRows"></div>
+          <button class="btn-add-word" onclick="addWord()">+ ADD WORD / PHRASE</button>
+        </div>
+
+        <div class="editor-section">
+          <div class="editor-section-title">Subtitle</div>
+          <textarea id="subtitle1" oninput="updateCard1()" rows="2">Rising Tensions Could Impact Millions of People in the Region</textarea>
+        </div>
+
+        <div class="editor-section">
+          <div class="editor-section-title">Body Description</div>
+          <div class="font-size-row">
+            <span class="font-size-label">SIZE</span>
+            <input type="range" id="bodyFontSize" min="8" max="24" value="12" step="1" oninput="updateBodySize(this.value)">
+            <div class="font-size-counter">
+              <button onclick="nudgeBodySize(-1)">−</button>
+              <span id="bodySizeLabel">12</span>
+              <button onclick="nudgeBodySize(1)">+</button>
+            </div>
+          </div>
+          <textarea id="body1" oninput="updateCard1()" rows="3">Threats reportedly include major international banks operating in Gulf financial hubs.</textarea>
+        </div>
+
+        <div class="editor-section">
+          <div class="editor-section-title">Watermark</div>
+          <input type="text" id="watermark1" value="@bitinning" oninput="updateCard1()">
+        </div>
+
+      </div><!-- /editor-scroll -->
+    </div><!-- /editor1 -->
+
+    <!-- CARD 2 EDITOR -->
+    <div class="tab-panel" id="editor2">
+      <div class="editor-scroll">
+
+        <div class="editor-section">
+          <div class="editor-section-title">Background Image</div>
+          <div class="upload-zone" onclick="document.getElementById('bg2Input').click()">
+            <input type="file" id="bg2Input" accept="image/*" onchange="loadBg(event,2)">
+            <div class="upload-zone-icon">🖼️</div>
+            <div class="upload-zone-text">TAP TO UPLOAD BACKGROUND</div>
+            <img id="bg2Thumb" class="upload-thumb" alt="">
+          </div>
+        </div>
+
+        <div class="editor-section">
+          <div class="editor-section-title">Logo</div>
+          <div class="upload-zone" onclick="document.getElementById('logo2Input').click()">
+            <input type="file" id="logo2Input" accept="image/*" onchange="loadLogo(event,2)">
+            <div class="upload-zone-text">📎 UPLOAD LOGO PNG</div>
+            <img id="logo2Thumb" class="upload-thumb" alt="">
+          </div>
+          <div class="hint">Transparent PNG recommended</div>
+        </div>
+
+        <div class="editor-section">
+          <div class="editor-section-title">Card Title</div>
+          <input type="text" id="card2title" value="Banks Under Security Alert" oninput="updateCard2()">
+        </div>
+
+        <div class="editor-section">
+          <div class="editor-section-title">Bullet Points</div>
+          <div class="points-list" id="pointsList"></div>
+          <button class="btn-add-point" onclick="addPoint()">+ ADD POINT</button>
+        </div>
+
+        <div class="editor-section">
+          <div class="editor-section-title">Footer Description</div>
+          <textarea id="footer2" oninput="updateCard2()" rows="3">Escalating geopolitical tensions can quickly impact global finance, banking, and regional stability.</textarea>
+        </div>
+
+        <div class="editor-section">
+          <div class="editor-section-title">Watermark</div>
+          <input type="text" id="watermark2" value="@bitinning" oninput="updateCard2()">
+        </div>
+
+      </div><!-- /editor-scroll -->
+    </div><!-- /editor2 -->
+
+    <!-- CTA -->
+    <div class="cta-area">
+      <button class="btn-primary" onclick="downloadActive()">⬇ DOWNLOAD 4K IMAGE</button>
+      <button class="btn-secondary" onclick="resetActive()">↺ RESET TO DEFAULT</button>
+    </div>
+
+  </div><!-- /editor-col -->
+
+  <!-- ==================== PREVIEW ==================== -->
+  <div class="preview-col">
+
+    <!-- Card 1 preview -->
+    <div id="previewWrap1" style="width:100%;max-width:540px;display:flex;flex-direction:column;">
+      <div class="preview-eyebrow">CARD 1 — HEADLINE</div>
+      <div class="post-card" id="postCard1">
+        <div class="card-photo-area">
+          <div class="card-photo-placeholder" id="ph1">
+            <div class="ph-icon">🌆</div>
+            <div class="ph-text">UPLOAD BACKGROUND</div>
+          </div>
+          <img class="bg-img" id="bgImg1" src="" alt="">
+          <div class="card-photo-fade"></div>
+        </div>
+        <div class="card-logo-band">
+          <div class="card-logo-line"></div>
+          <div class="card-logo-inner">
+            <img class="card-logo-img" id="logoImg1" alt="">
+            <div class="card-logo-fallback" id="logoFallback1">
+              <div class="card-logo-fallback-icon">₿</div>
+              <div class="card-logo-fallback-wrap">
+                <div class="card-logo-fallback-name">Bitinning</div>
+                <div class="card-logo-fallback-tag">Let's Understand Crypto</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card-text-area">
+          <div class="card-main-heading" id="c1Heading"></div>
+          <div class="card-subtitle" id="c1Subtitle">Rising Tensions Could Impact Millions of People in the Region</div>
+          <div class="card-body" id="c1Body">Threats reportedly include major international banks operating in Gulf financial hubs.</div>
+        </div>
+        <div class="card-footer">
+          <div class="card-footer-line"></div>
+          <div class="card-watermark" id="c1Watermark">@bitinning</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 2 preview -->
+    <div id="previewWrap2" style="width:100%;max-width:540px;display:none;flex-direction:column;">
+      <div class="preview-eyebrow">CARD 2 — DETAILS</div>
+      <div class="post-card" id="postCard2">
+        <div class="card-photo-area">
+          <div class="card-photo-placeholder" id="ph2">
+            <div class="ph-icon">🏙️</div>
+            <div class="ph-text">UPLOAD BACKGROUND</div>
+          </div>
+          <img class="bg-img" id="bgImg2" src="" alt="">
+          <div class="card-photo-fade"></div>
+        </div>
+        <div class="card-logo-band">
+          <div class="card-logo-line"></div>
+          <div class="card-logo-inner">
+            <img class="card-logo-img" id="logoImg2" alt="">
+            <div class="card-logo-fallback" id="logoFallback2">
+              <div class="card-logo-fallback-icon">₿</div>
+              <div class="card-logo-fallback-wrap">
+                <div class="card-logo-fallback-name">Bitinning</div>
+                <div class="card-logo-fallback-tag">Let's Understand Crypto</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card2-content">
+          <div class="card2-title" id="c2Title">Banks Under Security Alert</div>
+          <div class="card2-points" id="c2Points"></div>
+          <div class="card2-footer-text" id="c2Footer">Escalating geopolitical tensions can quickly impact global finance, banking, and regional stability.</div>
+        </div>
+        <div class="card-footer">
+          <div class="card-footer-line"></div>
+          <div class="card-watermark" id="c2Watermark">@bitinning</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /preview-col -->
+</div><!-- /layout -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================
+// STATE
+// ============================
+let activeCard = 1;
+
+let words = [
+  {text:"IRAN WARNS",color:"gold"},{text:"IT MAY TARGET",color:"white"},
+  {text:"U.S.",color:"gold"},{text:"AND",color:"white"},
+  {text:"ISRAELI-LINKED BANKS",color:"gold"},{text:"ACROSS THE",color:"white"},
+  {text:"MIDDLE EAST",color:"gold"}
+];
+
+let points = [
+  "Iran vows to hit U.S. & Israeli-linked banks",
+  "Staff evacuations already started in Dubai & Qatar",
+  "1.5–3.5 million people at risk of displacement",
+  "Sources: Reuters + The Sun (March 2026)"
+];
+
+// ============================
+// TAB SWITCH
+// ============================
+function switchCard(n) {
+  activeCard = n;
+  document.querySelectorAll('.card-tab').forEach((t,i) => t.classList.toggle('active', i===n-1));
+  document.getElementById('editor1').classList.toggle('active', n===1);
+  document.getElementById('editor2').classList.toggle('active', n===2);
+  document.getElementById('previewWrap1').style.display = n===1 ? 'flex' : 'none';
+  document.getElementById('previewWrap2').style.display = n===2 ? 'flex' : 'none';
+}
+
+// ============================
+// CARD 1
+// ============================
+function renderWordInputs() {
+  const c = document.getElementById('wordRows');
+  c.innerHTML = '';
+  words.forEach((w,i) => {
+    const row = document.createElement('div');
+    row.className = 'word-row';
+    row.innerHTML = `
+      <input type="text" value="${esc(w.text)}" oninput="updateWordText(${i},this.value)">
+      <button class="word-color-btn is-${w.color}" onclick="toggleWordColor(${i})">${w.color==='gold'?'G':'W'}</button>
+      <button class="btn-remove-word" onclick="removeWord(${i})">✕</button>`;
+    c.appendChild(row);
+  });
+}
+function updateWordText(i,v){ words[i].text=v; renderHeading(); }
+function toggleWordColor(i){ words[i].color=words[i].color==='gold'?'white':'gold'; renderWordInputs(); renderHeading(); }
+function removeWord(i){ words.splice(i,1); renderWordInputs(); renderHeading(); }
+function addWord(){ words.push({text:'NEW PHRASE',color:'gold'}); renderWordInputs(); renderHeading(); }
+function renderHeading(){
+  const c = document.getElementById('c1Heading');
+  c.innerHTML = words.map((w,i) =>
+    `<span style="color:${w.color==='gold'?'#F5A623':'#fff'};white-space:pre-wrap;">${esc(w.text)}</span>${i<words.length-1?'<span style="color:#fff"> </span>':''}`
+  ).join('');
+}
+function updateCard1(){
+  document.getElementById('c1Subtitle').textContent = document.getElementById('subtitle1').value;
+  document.getElementById('c1Body').textContent = document.getElementById('body1').value;
+  document.getElementById('c1Watermark').textContent = document.getElementById('watermark1').value;
+}
+
+// ============================
+// CARD 2
+// ============================
+function renderPointInputs(){
+  const c = document.getElementById('pointsList');
+  c.innerHTML = '';
+  points.forEach((p,i) => {
+    const row = document.createElement('div');
+    row.className = 'point-row';
+    row.innerHTML = `<input type="text" value="${esc(p)}" oninput="updatePoint(${i},this.value)"><button class="btn-remove-point" onclick="removePoint(${i})">✕</button>`;
+    c.appendChild(row);
+  });
+}
+function updatePoint(i,v){ points[i]=v; renderPointsPreview(); }
+function addPoint(){ points.push('New point'); renderPointInputs(); renderPointsPreview(); }
+function removePoint(i){ points.splice(i,1); renderPointInputs(); renderPointsPreview(); }
+function renderPointsPreview(){
+  document.getElementById('c2Points').innerHTML = points.map(p=>`<div class="card2-point">${esc(p)}</div>`).join('');
+}
+function updateCard2(){
+  document.getElementById('c2Title').textContent = document.getElementById('card2title').value;
+  document.getElementById('c2Footer').textContent = document.getElementById('footer2').value;
+  document.getElementById('c2Watermark').textContent = document.getElementById('watermark2').value;
+}
+
+// ============================
+// FONT SIZE
+// ============================
+function updateHeadingSize(val) {
+  val = Math.min(80, Math.max(16, parseInt(val)));
+  document.getElementById('headingFontSize').value = val;
+  document.getElementById('headingSizeLabel').textContent = val;
+  document.getElementById('postCard1').style.setProperty('--heading-size', val + 'px');
+}
+function nudgeSize(delta) {
+  updateHeadingSize(parseInt(document.getElementById('headingFontSize').value) + delta);
+}
+function updateBodySize(val) {
+  val = Math.min(24, Math.max(8, parseInt(val)));
+  document.getElementById('bodyFontSize').value = val;
+  document.getElementById('bodySizeLabel').textContent = val;
+  document.getElementById('postCard1').style.setProperty('--body-size', val + 'px');
+}
+function nudgeBodySize(delta) {
+  updateBodySize(parseInt(document.getElementById('bodyFontSize').value) + delta);
+}
+
+// ============================
+// IMAGE LOADERS
+// ============================
+function loadBg(e,n){
+  const f = e.target.files[0]; if(!f) return;
+  const url = URL.createObjectURL(f);
+  document.getElementById('ph'+n).style.display = 'none';
+  const img = document.getElementById('bgImg'+n);
+  img.src = url; img.style.display = 'block';
+  const th = document.getElementById('bg'+n+'Thumb');
+  th.src = url; th.style.display = 'block';
+}
+function loadLogo(e,n){
+  const f = e.target.files[0]; if(!f) return;
+  const url = URL.createObjectURL(f);
+  document.getElementById('logoFallback'+n).style.display = 'none';
+  const li = document.getElementById('logoImg'+n);
+  li.src = url; li.style.display = 'block'; li.style.height = '38px';
+  const th = document.getElementById('logo'+n+'Thumb');
+  th.src = url; th.style.display = 'block';
+}
+
+// ============================
+// DOWNLOAD 4K
+// ============================
+async function downloadActive(){
+  const id = activeCard===1 ? 'postCard1' : 'postCard2';
+  const fname = activeCard===1 ? 'bitinning-card1.png' : 'bitinning-card2.png';
+  showToast('⏳ RENDERING 4K...');
+  try {
+    const canvas = await html2canvas(document.getElementById(id), {
+      scale: 4,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#000000',
+      logging: false,
+      imageTimeout: 15000
+    });
+
+    const dataUrl = canvas.toDataURL('image/png', 1.0);
+
+    // BEST METHOD: Native Android bridge — saves directly to Pictures/Bitinning gallery
+    if (window.AndroidBridge && window.AndroidBridge.saveImageToGallery) {
+      window.AndroidBridge.saveImageToGallery(dataUrl, fname);
+      return; // Toast is shown natively by Android
+    }
+
+    // FALLBACK 1: Web Share API (lets user save to gallery or share)
+    if (navigator.share && navigator.canShare) {
+      try {
+        const blob = await (await fetch(dataUrl)).blob();
+        const file = new File([blob], fname, { type: 'image/png' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: 'Bitinning Post' });
+          showToast('✅ IMAGE SAVED!');
+          return;
+        }
+      } catch(shareErr) {
+        if (shareErr.name === 'AbortError') { showToast('ℹ️ Cancelled'); return; }
+      }
+    }
+
+    // FALLBACK 2: Blob download
+    const blob = await (await fetch(dataUrl)).blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = fname;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(blobUrl); }, 1000);
+    showToast('✅ SAVED! Check Downloads folder');
+
+  } catch(err) {
+    console.error(err);
+    showToast('❌ ERROR: ' + err.message);
+  }
+}
+
+// ============================
+// RESET
+// ============================
+function resetActive(){
+  if(activeCard===1){
+    words=[
+      {text:"IRAN WARNS",color:"gold"},{text:"IT MAY TARGET",color:"white"},
+      {text:"U.S.",color:"gold"},{text:"AND",color:"white"},
+      {text:"ISRAELI-LINKED BANKS",color:"gold"},{text:"ACROSS THE",color:"white"},
+      {text:"MIDDLE EAST",color:"gold"}
+    ];
+    document.getElementById('subtitle1').value = 'Rising Tensions Could Impact Millions of People in the Region';
+    document.getElementById('body1').value = 'Threats reportedly include major international banks operating in Gulf financial hubs.';
+    document.getElementById('watermark1').value = '@bitinning';
+    renderWordInputs(); renderHeading(); updateCard1();
+    updateHeadingSize(42); updateBodySize(12);
+  } else {
+    points = [
+      "Iran vows to hit U.S. & Israeli-linked banks",
+      "Staff evacuations already started in Dubai & Qatar",
+      "1.5–3.5 million people at risk of displacement",
+      "Sources: Reuters + The Sun (March 2026)"
+    ];
+    document.getElementById('card2title').value = 'Banks Under Security Alert';
+    document.getElementById('footer2').value = 'Escalating geopolitical tensions can quickly impact global finance, banking, and regional stability.';
+    document.getElementById('watermark2').value = '@bitinning';
+    renderPointInputs(); renderPointsPreview(); updateCard2();
+  }
+  showToast('↺ RESET DONE');
+}
+
+// ============================
+// UTILS
+// ============================
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._t); t._t = setTimeout(()=>t.classList.remove('show'), 2800);
+}
+
+
+
+// ============================
+// OFFLINE / ONLINE STATUS
+// ============================
+function updateOnlineStatus() {
+  document.getElementById('offlineBar').classList.toggle('visible', !navigator.onLine);
+}
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+updateOnlineStatus();
+
+// ============================
+// INIT
+// ============================
+renderWordInputs(); renderHeading();
+renderPointInputs(); renderPointsPreview();
+updateHeadingSize(42);
+updateBodySize(12);
+</script>
+</body>
+</html>
